@@ -4,14 +4,28 @@ require 'pry-byebug'
 require 'pandoc-ruby'
 require 'cgi'
 
-raise "TARGET_SITE env variable is not defined - run `TARGET_SITE=http://example.com/ bundle exec ruby crawl.rb`" unless ENV['TARGET_SITE']
+# raise "TARGET_SITE env variable is not defined - run `TARGET_SITE=http://example.com/ bundle exec ruby crawl.rb`" unless ENV['TARGET_SITE']
 
-Spidr.site(ENV['TARGET_SITE']) do |spider|
-  spider.every_page { |page|
+agent = Spidr::Agent.new
+all_pages = agent.visit_page 'http://uqbar-wiki.org/index.php?title=Especial:Todas'
+all_pages.links.each do |url|
+  next unless url.start_with? '/index.php?title='
+  page = agent.visit_page "http://uqbar-wiki.org#{url}&action=edit"
+
+  begin
+    puts page.url
+
     if page.url.to_s.include? 'action=edit' and !page.redirect?
       # You can't parse [X]HTML with regex ¯\_(ツ)_/¯
       # http://stackoverflow.com/a/1732454/641451
-      mediawiki = page.body.match(/<textarea([^>]*)>(.*)<\/textarea>/m)[2]
+      matches = page.body.match(/<textarea([^>]*)>(.*)<\/textarea>/m)
+
+      unless matches
+        puts "Didn't find a textarea"
+        next
+      end
+
+      mediawiki = matches[2]
 
       markdown = PandocRuby.convert(mediawiki, from: :mediawiki, to: :markdown_github)
 
@@ -27,12 +41,12 @@ Spidr.site(ENV['TARGET_SITE']) do |spider|
       frontmatter = <<-FRONTMATTER
 ---
 layout: page
-title: #{title}
+title: "#{title}"
 permalink: "#{location}/"
 ---
 FRONTMATTER
 
-      directory_path = "_pages/#{location}"
+      directory_path = "_pages2/#{location}"
       FileUtils.mkdir_p directory_path
       File.open("#{directory_path}/index.md", 'w') do |f|
         f.puts frontmatter
@@ -40,8 +54,9 @@ FRONTMATTER
 
         puts "  Exported to #{f.path}"
       end
-
     end
-    puts page.url
-  }
+  rescue => e
+    binding.pry
+    puts e
+  end
 end

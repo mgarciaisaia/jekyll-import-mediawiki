@@ -62,7 +62,65 @@ def date(revision)
   revision['timestamp']
 end
 
-site_uri = URI(ENV['TARGET_SITE']
+def all_images(api)
+  images = []
+  base_query = 'action=query&list=allimages&format=json'
+  continuation_params = 'continue='
+
+  begin
+    api.query = "#{base_query}&#{continuation_params}"
+    response = JSON.parse Net::HTTP.get(api)
+    images.concat response['query']['allimages']
+    continuation_params = if response.has_key? 'continue'
+                            URI.encode_www_form response['continue']
+                          else
+                            nil
+                          end
+  end while continuation_params
+  puts "Found #{images.size} images:"
+  puts images.map {|image| image['url']}
+  images
+end
+
+def download_images!(api, directory_path)
+  images = all_images(api)
+  Net::HTTP.start(api.host) do |http|
+    images.each do |image|
+      target = image['url'].gsub(ENV['TARGET_SITE'], '')
+      target = "/#{target}" unless target.start_with? '/'
+      puts "Downloading #{image['name']}..."
+      resp = http.get(target)
+      File.open("#{directory_path}#{image['name']}", "wb") do |file|
+        file.write(resp.body)
+      end
+    end
+  end
+  puts "Finished downloading #{images.size} images."
+  images.map {|image| image['name']}
+end
+
+def commit_images!(api, directory_path, repo)
+  image_files = download_images!(api, directory_path)
+  image_files.each do |file|
+    repo.add file
+  end
+
+  comment = "Images imported from MediaWiki"
+  author  = "MediaWiki Importer <mediawiki_importer@uqbar-project.org>" # TODO: should we use a valid email?
+  date    = Time.now.to_i
+  commit! repo, comment, author, date
+end
+
+def commit!(repo, comment, author, date)
+  begin
+    repo.commit(comment, author: author, date: date)
+  rescue => ex
+    puts ex
+    binding.pry unless ex.message.end_with? 'nothing to commit, working tree clean'
+  end
+end
+
+site_uri = URI(ENV['TARGET_SITE'])
 site_uri.path = '/api.php'
 
 directory_path = "_pages/"
@@ -94,13 +152,10 @@ pages.each do |page_id|
     end
 
     repo.add file
-    begin
-      repo.commit(comment, author: author, date: date)
-    rescue => ex
-      puts ex
-      binding.pry unless ex.message.end_with? 'nothing to commit, working tree clean'
-    end
+    commit! repo, comment, author, date
   end
 
   puts "Authors: #{$authors.to_a}"
 end
+
+commit_images! site_uri, directory_path, repo

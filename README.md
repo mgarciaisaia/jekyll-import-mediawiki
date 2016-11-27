@@ -1,22 +1,20 @@
 # jekyll-import-mediawiki
 
-This is a work-in-progress MediaWiki to Jekyll migrator.
+This _was_ a work-in-progress MediaWiki to Jekyll migrator. It still is a work-in-progress, but it doesn't mess with Jekyll anymore.
 
-If things go well, time will come to convert this project into a [jekyll/jekyll-import](https://github.com/jekyll/jekyll-import) [Importer](https://import.jekyllrb.com/docs/contributing/#creating-a-new-importer).
+It exports every revision of each page of a MediaWiki to Github Flavored Markdown files in a new repo, so you can upload it to Github and navigate it there. It takes care of the internal links so they still work, and keeps track of the versions so you can see the whole history of the wiki.
 
-Until then, it just scraps some MediaWiki you tell it to, and converts its pages to Jekyll-enabled markdown pages.
+Or at least _tries_ to ¯\\\_(ツ)\_/¯
 
 ## Usage
 
-Just `TARGET_SITE=http://your-site.sexy/ bundle exec ruby crawl.rb` and you should be good to go. Whenever the - pretty much verbose - script finishes, you should have a `_pages` directory with a subdirectory for each page.
-
-You can simply copy those subdirectories to the root of your Jekyll site, and that'll work.
-
-But if you love yourself just a little bit, you'll be better copying the whole `_pages` directory inside the Jekyll's one. For making Jekyll aware of those new files, you should add a `include: ['_pages']` entry in your `_config.yml`.
+Just `TARGET_SITE=http://your-site.sexy/ bundle exec ruby crawl.rb` and you should be good to go. Whenever the - pretty much verbose - script finishes, you should have a `_pages` directory which is the full exported repository, ready to be pushed.
 
 ## Installation
 
 Go to the project's root dir (the one with the `Gemfile`) and `bundle install`. **You should have `pandoc` available** on your system. Install it via your system's package manager (`sudo apt-get install pandoc`, `brew install pandoc`, etc).
+
+You need a `git` client available in the command line, too - but chances are you already have one.
 
 ## Bugs & contributions
 

@@ -1,5 +1,7 @@
 source "https://rubygems.org"
 
-gem 'spidr'
-gem 'pry-byebug'
+gem 'i18n'
+gem 'git'
 gem 'pandoc-ruby'
+
+gem 'pry-byebug'

@@ -1,0 +1,3 @@
+TARGET_SITE: http://uqbar-wiki.org/
+debug : True
+mail_domain: uqbar-project.org

@@ -7,8 +7,11 @@ require 'cgi'
 require 'git'
 
 require 'pry-byebug'
+require_relative 'config'
 
-raise "TARGET_SITE env variable is not defined - run `TARGET_SITE=http://example.com/ bundle exec ruby crawl.rb`" unless ENV['TARGET_SITE']
+CONFIG_FILE = "config.yml"
+
+CRAWL_CONFIG = ConfigFile.new.as_ostruct
 
 I18n.available_locales = [:en]
 $authors = Set[]
@@ -34,8 +37,8 @@ end
 def all_pages(api)
   api.query = 'action=query&list=allpages&aplimit=max&format=json'
   response = JSON.parse Net::HTTP.get(api)
-  puts response['query']['allpages'].map {|page| "#{page['pageid']} - #{page['title']}"}
-  response['query']['allpages'].map {|page| page['pageid']}
+  puts response['query']['allpages'].map { |page| "#{page['pageid']} - #{page['title']}" } if CRAWL_CONFIG.debug
+  response['query']['allpages'].map { |page| page['pageid'] }
 end
 
 # http://uqbar-wiki.org/api.php?action=query&format=json&prop=revisions&pageids=1405&rvlimit=max&rvprop=timestamp%7Cuser%7Ccomment%7Ccontent&rvdir=newer
@@ -55,14 +58,22 @@ end
 
 def author(revision)
   $authors << revision['user']
-  "#{revision['user']} <#{revision['user']}@uqbar-project.org>"
+  "#{revision['user']} <#{revision['user']}@#{CRAWL_CONFIG.mail_domain}>"
 end
 
 def date(revision)
   revision['timestamp']
 end
 
-site_uri = URI(ENV['TARGET_SITE']
+#useless method for now...
+def check_target_site
+  raise "TARGET_SITE env variable is not defined - run `TARGET_SITE=http://example.com/ bundle exec ruby crawl.rb`" unless ENV['TARGET_SITE'] or CRAWL_CONFIG.TARGET_SITE
+end
+
+
+check_target_site
+
+site_uri = URI(ENV['TARGET_SITE'] || CRAWL_CONFIG.TARGET_SITE)
 site_uri.path = '/api.php'
 
 directory_path = "_pages/"
@@ -90,7 +101,7 @@ pages.each do |page_id|
     File.open("#{directory_path}#{file}", 'w') do |f|
       f.puts links_fixed
 
-      puts "  Exported to #{f.path}"
+      puts "  Exported to #{f.path}" if CRAWL_CONFIG.debug
     end
 
     repo.add file
@@ -98,9 +109,9 @@ pages.each do |page_id|
       repo.commit(comment, author: author, date: date)
     rescue => ex
       puts ex
-      binding.pry unless ex.message.end_with? 'nothing to commit, working tree clean'
+      binding.pry unless ex.message.end_with? 'nothing to commit, working directory clean'
     end
   end
 
-  puts "Authors: #{$authors.to_a}"
+  puts "Authors: #{$authors.to_a}" if CRAWL_CONFIG.debug
 end
